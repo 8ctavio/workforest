@@ -1,0 +1,25 @@
+{
+	"name": "workforest",
+	"displayName": "Workforest",
+	"publisher": "8ctavio",
+	"version": "0.0.0",
+	"license": "MIT",
+	"private": true,
+	"author": "Octavio Araiza (https://github.com/8ctavio)",
+	"type": "module",
+	"main": "./src/extension.js",
+	"scripts": {
+		"lint": "oxlint",
+		"typecheck": "tsc"
+	},
+	"packageManager": "pnpm@10.30.0",
+	"engines": {
+		"vscode": "^1.74.0"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"@types/vscode": "catalog:",
+		"oxlint": "catalog:",
+		"typescript": "catalog:"
+	}
+}
