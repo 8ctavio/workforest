@@ -12,6 +12,78 @@
 		"lint": "oxlint",
 		"typecheck": "tsc"
 	},
+	"activationEvents": [],
+	"contributes": {
+		"configuration": {
+			"title": "Workforest",
+			"properties": {
+				"workforest.workspaceDirectory": {
+					"type": "string",
+					"default": "",
+					"description": "Path to directory with workspace files (.code-workspace)"
+				}
+			}
+		},
+		"commands": [{
+			"command": "workforest.selectWorkspaceDirectory",
+			"title": "Select Workspace Directory",
+			"icon": "$(folder)"
+		},{
+			"command": "workforest.refreshWorkspaceDirectory",
+			"title": "Refresh Workspace Directory",
+			"icon": "$(refresh)"
+		},{
+			"command": "workforest.openWorkspaceFile",
+			"title": "Open Workspace File",
+			"icon": "$(go-to-file)"
+		}],
+		"viewsContainers": {
+			"activitybar": [{
+				"id": "workforest",
+				"title": "Workforest",
+				"icon": "resources/forest.svg"
+			}]
+		},
+		"views": {
+			"workforest": [{
+				"id": "workspaces",
+				"name": "Workspaces",
+				"icon": "media/workspace.svg",
+				"visibility": "visible",
+				"initialSize": 0
+			}]
+		},
+		"viewsWelcome": [{
+			"view": "workspaces",
+			"when": "!config.workforest.workspaceDirectory",
+			"contents": "[Add workspace directory](command:workforest.selectWorkspaceDirectory)"
+		},{
+			"view": "workspaces",
+			"when": "config.workforest.workspaceDirectory",
+			"contents": "No workspace files found"
+		}],
+		"menus": {
+			"view/title": [{
+				"when": "view == workspaces",
+				"command": "workforest.selectWorkspaceDirectory",
+				"group": "navigation@1"
+			},{
+				"when": "view == workspaces",
+				"command": "workforest.refreshWorkspaceDirectory",
+				"group": "navigation@2"
+			}],
+			"view/item/context": [{
+				"when": "view == workspaces",
+				"command": "workforest.openWorkspaceFile",
+				"group": "inline"
+			}]
+		}
+	},
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": false
+		}
+	},
 	"packageManager": "pnpm@10.30.0",
 	"engines": {
 		"vscode": "^1.74.0"
