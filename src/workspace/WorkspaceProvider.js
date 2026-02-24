@@ -1,6 +1,6 @@
+import * as vscode from 'vscode'
 import { readdir } from 'node:fs/promises'
 import { join, extname } from 'node:path'
-import * as vscode from 'vscode'
 
 export class WorkspaceItem extends vscode.TreeItem {
 	/** @param { string } workspacePath */
@@ -18,7 +18,7 @@ export class WorkspaceItem extends vscode.TreeItem {
 /**
  * @implements { vscode.TreeDataProvider<WorkspaceItem> }
  */
-export class WorkspaceProvider {
+class WorkspaceProvider {
 	/** @type { vscode.EventEmitter<WorkspaceItem | undefined | null | void> } */
 	#changeTreeDataEmitter = new vscode.EventEmitter()
 
@@ -35,11 +35,11 @@ export class WorkspaceProvider {
 
 	/** @param { WorkspaceItem } [element] */
 	async getChildren(element) {
-		if (element) return []
+		if (element) return
 
 		/** @type { string | undefined } */
 		const workspaceDir = vscode.workspace.getConfiguration('workforest').get('workspaceDirectory')
-		if (!workspaceDir) return []
+		if (!workspaceDir) return
 		
 		try {
 			const files = await readdir(workspaceDir)
@@ -56,3 +56,5 @@ export class WorkspaceProvider {
 		}
 	}
 }
+
+export const workspaceProvider = new WorkspaceProvider()

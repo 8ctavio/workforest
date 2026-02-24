@@ -1,12 +1,13 @@
-import { basename, dirname } from 'node:path'
 import * as vscode from 'vscode'
-import { useGit, getWorktrees } from './utils/git.js'
+import { basename, dirname } from 'node:path'
+import { useGit, getWorktrees } from '../utils/git.js'
 
 /**
- * @import { Worktree } from './utils/git.js'
+ * @import { Worktree } from '../utils/git.js'
  */
 
-export class WorktreeContainer extends vscode.TreeItem {
+export class RepoItem extends vscode.TreeItem {
+
 	/**
 	 * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
 	 */
@@ -18,7 +19,8 @@ export class WorktreeContainer extends vscode.TreeItem {
 			: dirLabel
 		super(label, vscode.TreeItemCollapsibleState.Expanded)
 		this.id = `repo:${mainWorktree.path}`
-		this.contextValue = 'repository'
+		/** @readonly */
+		this.contextValue = /** @type { const } */('repository')
 		this.iconPath = new vscode.ThemeIcon('repo')
 		this.mainPath = mainWorktree.path
 		this.worktrees = worktrees.map(w => new WorktreeItem(w, this))
@@ -28,24 +30,25 @@ export class WorktreeContainer extends vscode.TreeItem {
 export class WorktreeItem extends vscode.TreeItem {
 	/**
 	 * @param { Worktree } worktree 
-	 * @param { WorktreeContainer } parent 
+	 * @param { RepoItem } repo 
 	 */
-	constructor(worktree, parent) {
+	constructor(worktree, repo) {
 		super(worktree.branch || basename(worktree.path))
 		this.id = worktree.path
-		this.contextValue = 'worktree'
+		/** @readonly */
+		this.contextValue = /** @type {const} */('worktree')
 		this.description = worktree.path
 		this.iconPath = new vscode.ThemeIcon('worktree')
 		this.tooltip = 'Open Worktree'
-		this.$parent = parent
+		this.$repo = repo
 	}
 }
 
 /**
- * @implements { vscode.TreeDataProvider<WorktreeContainer | WorktreeItem> }
+ * @implements { vscode.TreeDataProvider<RepoItem | WorktreeItem> }
  */
-export class WorktreeProvider {
-	/** @type { vscode.EventEmitter<WorktreeItem | undefined | null | void> } */
+class WorktreeProvider {
+	/** @type { vscode.EventEmitter<RepoItem | WorktreeItem | undefined | null | void> } */
 	#changeTreeDataEmitter = new vscode.EventEmitter()
 
 	onDidChangeTreeData = this.#changeTreeDataEmitter.event
@@ -54,29 +57,31 @@ export class WorktreeProvider {
 		this.#changeTreeDataEmitter.fire()
 	}
 
-	/** @param { WorktreeItem } element */
+	/** @param { RepoItem | WorktreeItem } element */
 	getTreeItem(element) {
 		return element
 	}
 
-	/** @param { WorktreeContainer | WorktreeItem } [element] */
+	/** @param { RepoItem | WorktreeItem } [element] */
 	async getChildren(element) {
 		if (!element) {
 			const git = useGit()
 			const { repositories } = git
 	
-			/** @type { Record<string, WorktreeContainer> } */
+			/** @type { Record<string, RepoItem> } */
 			const items = {}
 			for (const repo of repositories) {
 				if (repo.kind === 'repository' || repo.kind === 'worktree') {
 					const worktrees = await getWorktrees(repo.rootUri.fsPath)
 					const [mainWorktree] = worktrees
-					items[mainWorktree.path] ??= new WorktreeContainer(worktrees)
+					items[mainWorktree.path] ??= new RepoItem(worktrees)
 				}
 			}
 			return Object.values(items)
-		} else if (element instanceof WorktreeContainer) {
+		} else if (element.contextValue === 'repository') {
 			return element.worktrees
 		}
 	}
 }
+
+export const worktreeProvider = new WorktreeProvider()
