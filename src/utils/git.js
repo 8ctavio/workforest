@@ -5,6 +5,9 @@ import * as vscode from 'vscode'
  * @import { GitExtension } from '../dts/git.d.ts'
  */
 
+/** @type { string } */
+let gitCommand
+
 /**
  * @see https://github.com/microsoft/vscode/blob/main/extensions/git/README.md
  */
@@ -14,19 +17,14 @@ export function useGit() {
 	return gitExtension.exports.getAPI(1)
 }
 
-/** @type { string } */
-let gitPath
-
 /**
  * @param { string } cwd
  * @param { readonly string[] } args 
  */
 export function runGit(cwd, args) {
-	const command = process.platform === 'win32'
-		? gitPath ??= useGit().git.path
-		: 'git'
 	return new Promise((resolve, reject) => {
-		const git = spawn(command, args, {
+		gitCommand ??= process.platform === 'win32' ? useGit().git.path : 'git'
+		const git = spawn(gitCommand, args, {
 			cwd,
 			stdio: ['ignore', 'pipe', 'pipe']
 		})
