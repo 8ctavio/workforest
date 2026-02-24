@@ -24,19 +24,41 @@
 				}
 			}
 		},
-		"commands": [{
-			"command": "workforest.selectWorkspaceDirectory",
-			"title": "Select Workspace Directory",
-			"icon": "$(folder)"
-		},{
-			"command": "workforest.refreshWorkspaceDirectory",
-			"title": "Refresh Workspace Directory",
-			"icon": "$(refresh)"
-		},{
-			"command": "workforest.openWorkspaceFile",
-			"title": "Open Workspace File",
-			"icon": "$(go-to-file)"
-		}],
+		"commands": [
+			{
+				"command": "workforest.refreshWorktrees",
+				"title": "Refresh Worktrees",
+				"icon": "$(refresh)"
+			},{
+				"command": "workforest.addWorktree",
+				"title": "Add Worktree",
+				"icon": "$(git-branch-staged-changes)"
+			},{
+				"command": "workforest.removeWorktree",
+				"title": "Remove Worktree",
+				"icon": "$(trash)"
+			},{
+				"command": "workforest.openWorktreeInNewWindow",
+				"title": "Open Worktree in New Window",
+				"icon": "$(empty-window)"
+			},{
+				"command": "workforest.revealWorktreeInFileExplorer",
+				"title": "Reveal Worktree in File Explorer",
+				"icon": "$(folder-opened)"
+			},{
+				"command": "workforest.selectWorkspaceDirectory",
+				"title": "Select Workspace Directory",
+				"icon": "$(folder)"
+			},{
+				"command": "workforest.refreshWorkspaceDirectory",
+				"title": "Refresh Workspace Directory",
+				"icon": "$(refresh)"
+			},{
+				"command": "workforest.openWorkspaceFile",
+				"title": "Open Workspace File",
+				"icon": "$(go-to-file)"
+			}
+		],
 		"viewsContainers": {
 			"activitybar": [{
 				"id": "workforest",
@@ -46,37 +68,70 @@
 		},
 		"views": {
 			"workforest": [{
+				"id": "worktrees",
+				"name": "Worktrees",
+				"icon": "($repo)",
+				"visibility": "visible"
+			},{
 				"id": "workspaces",
 				"name": "Workspaces",
-				"icon": "media/workspace.svg",
-				"visibility": "visible",
-				"initialSize": 0
+				"icon": "$(project)",
+				"visibility": "collapsed"
 			}]
 		},
-		"viewsWelcome": [{
-			"view": "workspaces",
-			"when": "!config.workforest.workspaceDirectory",
-			"contents": "[Add workspace directory](command:workforest.selectWorkspaceDirectory)"
-		},{
-			"view": "workspaces",
-			"when": "config.workforest.workspaceDirectory",
-			"contents": "No workspace files found"
-		}],
-		"menus": {
-			"view/title": [{
-				"when": "view == workspaces",
-				"command": "workforest.selectWorkspaceDirectory",
-				"group": "navigation@1"
+		"viewsWelcome": [
+			{
+				"view": "worktrees",
+				"contents": "No repositories detected"
 			},{
-				"when": "view == workspaces",
-				"command": "workforest.refreshWorkspaceDirectory",
-				"group": "navigation@2"
-			}],
-			"view/item/context": [{
-				"when": "view == workspaces",
-				"command": "workforest.openWorkspaceFile",
-				"group": "inline"
-			}]
+				"view": "workspaces",
+				"when": "!config.workforest.workspaceDirectory",
+				"contents": "[Add workspace directory](command:workforest.selectWorkspaceDirectory)"
+			},{
+				"view": "workspaces",
+				"when": "config.workforest.workspaceDirectory",
+				"contents": "No workspace files found"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"when": "view == worktrees",
+					"command": "workforest.refreshWorktrees",
+					"group": "navigation"
+				},{
+					"when": "view == workspaces",
+					"command": "workforest.selectWorkspaceDirectory",
+					"group": "navigation@1"
+				},{
+					"when": "view == workspaces",
+					"command": "workforest.refreshWorkspaceDirectory",
+					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"when": "view == worktrees && viewItem == repository",
+					"command": "workforest.addWorktree",
+					"group": "inline"
+				},{
+					"when": "view == worktrees && viewItem == worktree",
+					"command": "workforest.openWorktreeInNewWindow",
+					"group": "inline@1"
+				},{
+					"when": "view == worktrees && viewItem == worktree",
+					"command": "workforest.revealWorktreeInFileExplorer",
+					"group": "inline@2"
+				},{
+					"when": "view == worktrees && viewItem == worktree",
+					"command": "workforest.removeWorktree",
+					"group": "inline@3"
+				},{
+					"when": "view == workspaces",
+					"command": "workforest.openWorkspaceFile",
+					"group": "inline"
+				}
+			]
 		}
 	},
 	"capabilities": {
@@ -84,6 +139,7 @@
 			"supported": false
 		}
 	},
+	"extensionDependencies": ["vscode.git"],
 	"packageManager": "pnpm@10.30.0",
 	"engines": {
 		"vscode": "^1.74.0"
