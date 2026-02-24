@@ -56,6 +56,11 @@ export async function addWorktree(repoItem) {
 
 /** @param { WorktreeItem } worktreeItem */
 export async function removeWorktree(worktreeItem) {
+	if (worktreeItem.isMain) {
+		vscode.window.showInformationMessage("A repository's main worktree cannot be deleted.")
+		return
+	}
+
 	const selection = await vscode.window.showWarningMessage(`Remove Worktree (${worktreeItem.$repo.label})`, {
 		modal: true,
 		detail: `Remove worktree at ${worktreeItem.id}`

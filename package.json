@@ -44,7 +44,7 @@
 			},{
 				"command": "workforest.revealWorktreeInFileExplorer",
 				"title": "Reveal Worktree in File Explorer",
-				"icon": "$(folder-opened)"
+				"icon": "$(file-submodule)"
 			},{
 				"command": "workforest.selectWorkspaceDirectory",
 				"title": "Select Workspace Directory",

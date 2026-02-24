@@ -7,7 +7,6 @@ import { useGit, getWorktrees } from '../utils/git.js'
  */
 
 export class RepoItem extends vscode.TreeItem {
-
 	/**
 	 * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
 	 */
@@ -23,23 +22,26 @@ export class RepoItem extends vscode.TreeItem {
 		this.contextValue = /** @type { const } */('repository')
 		this.iconPath = new vscode.ThemeIcon('repo')
 		this.mainPath = mainWorktree.path
-		this.worktrees = worktrees.map(w => new WorktreeItem(w, this))
+		this.worktrees = /** @type { [WorktreeItem<true>, ...WorktreeItem<false>[]] } */
+			(worktrees.map(w => new WorktreeItem(w, this)))
 	}
 }
-
+/** @template { boolean } [T = boolean] */
 export class WorktreeItem extends vscode.TreeItem {
 	/**
-	 * @param { Worktree } worktree 
+	 * @this { WorktreeItem }
+	 * @param { Worktree<T> } worktree
 	 * @param { RepoItem } repo 
 	 */
 	constructor(worktree, repo) {
 		super(worktree.branch || basename(worktree.path))
 		this.id = worktree.path
 		/** @readonly */
-		this.contextValue = /** @type {const} */('worktree')
+		this.contextValue = /** @type { const } */('worktree')
 		this.description = worktree.path
-		this.iconPath = new vscode.ThemeIcon('worktree')
+		this.iconPath = new vscode.ThemeIcon(worktree.isMain ? 'root-folder' : 'folder')
 		this.tooltip = 'Open Worktree'
+		this.isMain = worktree.isMain
 		this.$repo = repo
 	}
 }
@@ -65,17 +67,13 @@ class WorktreeProvider {
 	/** @param { RepoItem | WorktreeItem } [element] */
 	async getChildren(element) {
 		if (!element) {
-			const git = useGit()
-			const { repositories } = git
-	
 			/** @type { Record<string, RepoItem> } */
 			const items = {}
+			const { repositories } = useGit()
 			for (const repo of repositories) {
-				if (repo.kind === 'repository' || repo.kind === 'worktree') {
-					const worktrees = await getWorktrees(repo.rootUri.fsPath)
-					const [mainWorktree] = worktrees
-					items[mainWorktree.path] ??= new RepoItem(worktrees)
-				}
+				const worktrees = await getWorktrees(repo.rootUri.fsPath)
+				const [mainWorktree] = worktrees
+				items[mainWorktree.path] ??= new RepoItem(worktrees)
 			}
 			return Object.values(items)
 		} else if (element.contextValue === 'repository') {

@@ -58,14 +58,16 @@ export function runGit(cwd, args) {
 }
 
 /**
+ * @template { boolean } [T = boolean]
  * @typedef { object } Worktree
  * @property { string } path
+ * @property { T } isMain
  * @property { string } [HEAD]
  * @property { string } [branch]
- * @property { boolean } [bare]
- * @property { boolean } [detached]
  * @property { string | true } [locked]
- * @property { string | true} [prunable]
+ * @property { string | true } [prunable]
+ * @property { true } [bare]
+ * @property { true } [detached]
  */
 
 /** @param { string } path */
@@ -74,14 +76,14 @@ export async function getWorktrees(path) {
 
 	let idx = 0
 	/** @type { Record<string, unknown> } */
-	let worktree = {}
-	/** @type { [Worktree, ...Worktree[]] } */
+	let worktree = { isMain: true }
+	/** @type { [Worktree<true>, ...Worktree<false>[]] } */
 	const worktrees = /**@type {any}*/([])
 	while (idx < stdout.length) {
 		if (stdout[idx] === '\0') {
 			idx++
 			worktrees.push(/** @type { Worktree } */(worktree))
-			worktree = {}
+			worktree = { isMain: false }
 			continue
 		}
 		
