@@ -26,10 +26,6 @@
 		},
 		"commands": [
 			{
-				"command": "workforest.refreshWorktrees",
-				"title": "Refresh Worktrees",
-				"icon": "$(refresh)"
-			},{
 				"command": "workforest.addWorktree",
 				"title": "Add Worktree",
 				"icon": "$(git-branch-staged-changes)"
@@ -46,17 +42,25 @@
 				"title": "Reveal Worktree in File Explorer",
 				"icon": "$(file-submodule)"
 			},{
+				"command": "workforest.refreshWorktrees",
+				"title": "Refresh Worktrees",
+				"icon": "$(refresh)"
+			},{
+				"command": "workforest.refreshGit",
+				"title": "Refresh Git",
+				"icon": "$(refresh)"
+			},{
 				"command": "workforest.selectWorkspaceDirectory",
 				"title": "Select Workspace Directory",
 				"icon": "$(folder)"
 			},{
-				"command": "workforest.refreshWorkspaceDirectory",
-				"title": "Refresh Workspace Directory",
-				"icon": "$(refresh)"
-			},{
 				"command": "workforest.openWorkspaceFile",
 				"title": "Open Workspace File",
 				"icon": "$(go-to-file)"
+			},{
+				"command": "workforest.refreshWorkspaceDirectory",
+				"title": "Refresh Workspace Directory",
+				"icon": "$(refresh)"
 			}
 		],
 		"viewsContainers": {
@@ -97,7 +101,7 @@
 			"view/title": [
 				{
 					"when": "view == worktrees",
-					"command": "workforest.refreshWorktrees",
+					"command": "workforest.refreshGit",
 					"group": "navigation"
 				},{
 					"when": "view == workspaces",
@@ -113,7 +117,11 @@
 				{
 					"when": "view == worktrees && viewItem == repository",
 					"command": "workforest.addWorktree",
-					"group": "inline"
+					"group": "inline@1"
+				},{
+					"when": "view == worktrees && viewItem == repository",
+					"command": "workforest.refreshWorktrees",
+					"group": "inline@2"
 				},{
 					"when": "view == worktrees && viewItem == worktree",
 					"command": "workforest.openWorktreeInNewWindow",

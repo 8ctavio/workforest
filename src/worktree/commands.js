@@ -7,8 +7,13 @@ import { runGit, isValidRef } from '../utils/git.js'
  * @import { RepoItem, WorktreeItem } from './WorktreeProvider.js'
  */
 
-export function refreshWorktrees() {
-	worktreeProvider.refresh()
+export function refreshGit() {
+	vscode.commands.executeCommand('git.refresh')
+}
+
+/** @param { RepoItem } repoItem */
+export function refreshWorktrees(repoItem) {
+	worktreeProvider.refresh(repoItem)
 }
 
 /** @param { WorktreeItem } worktreeItem */
@@ -50,7 +55,6 @@ export async function addWorktree(repoItem) {
 				resolve(mainPath, `../${worktree}`)
 			])
 		}
-		worktreeProvider.refresh()
 	}
 }
 
@@ -71,6 +75,5 @@ export async function removeWorktree(worktreeItem) {
 		if (selection === 'Force Remove') args.push('--force')
 		args.push(worktreeItem.id)
 		await runGit(worktreeItem.$repo.mainPath, args)
-		worktreeProvider.refresh()
 	}
 }
