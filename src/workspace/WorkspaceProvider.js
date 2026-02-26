@@ -2,23 +2,10 @@ import * as vscode from 'vscode'
 import { readdir } from 'node:fs/promises'
 import { join, extname } from 'node:path'
 
-export class WorkspaceItem extends vscode.TreeItem {
-	/** @param { string } workspacePath */
-	constructor(workspacePath) {
-		super(vscode.Uri.file(workspacePath))
-		this.tooltip = 'Open Workspace'
-		this.command = {
-			title: "Open Workspace",
-			command: 'vscode.openFolder',
-			arguments: [this.resourceUri]
-		}
-	}
-}
-
 /**
  * @implements { vscode.TreeDataProvider<WorkspaceItem> }
  */
-class WorkspaceProvider {
+export class WorkspaceProvider {
 	/** @type { vscode.EventEmitter<WorkspaceItem | undefined | null | void> } */
 	#changeTreeDataEmitter = new vscode.EventEmitter()
 
@@ -57,4 +44,15 @@ class WorkspaceProvider {
 	}
 }
 
-export const workspaceProvider = new WorkspaceProvider()
+export class WorkspaceItem extends vscode.TreeItem {
+	/** @param { string } workspacePath */
+	constructor(workspacePath) {
+		super(vscode.Uri.file(workspacePath))
+		this.tooltip = 'Open Workspace'
+		this.command = {
+			title: "Open Workspace",
+			command: 'vscode.openFolder',
+			arguments: [this.resourceUri]
+		}
+	}
+}

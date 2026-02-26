@@ -10,91 +10,9 @@ import { clearDisposables } from '../utils/dispose.js'
  */
 
 /**
- * @param { RepoItem } repoItem 
- * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
- */
-function createWorktreeItems(repoItem, worktrees) {
-	return /** @type { [WorktreeItem<true>, ...WorktreeItem<false>[]] } */(
-		worktrees.map(w => new WorktreeItem(repoItem, w))
-	)
-}
-
-export class RepoItem extends vscode.TreeItem {
-	/** @type { vscode.FileSystemWatcher[] } */
-	#watchers = []
-
-	/**
-	 * @param { WorktreeProvider } provider
-	 * @param { string } worktreePath
-	 * @param { string } commonDir
-	 * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
-	 */
-	constructor(provider, worktreePath, commonDir, worktrees) {
-		const [mainWorktree] = worktrees
-		const mainBasename = basename(mainWorktree.path)
-		const label = mainBasename.toLowerCase() === mainWorktree.branch?.toLowerCase()
-			? basename(dirname(mainWorktree.path))
-			: mainBasename
-		
-		super(label, vscode.TreeItemCollapsibleState.Expanded)
-
-		/** @readonly */
-		this.id = `repo:${mainWorktree.path}`
-		this.iconPath = new vscode.ThemeIcon('repo')
-		/** @readonly */
-		this.contextValue = /** @type { const } */('repository')
-		/** @readonly */
-		this.mainPath = mainWorktree.path
-		/** @readonly */
-		this.openedWorktrees = new Set(worktreePath)
-		this.worktrees = createWorktreeItems(this, worktrees)
-
-		const commonDirUri = vscode.Uri.file(commonDir)
-		const headWatcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(commonDirUri, '{HEAD,worktrees/*/HEAD}'),
-			true, false, true // ignoreCreateEvents & ignoreDeleteEvents
-		)
-		const worktreeWatcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(commonDirUri, 'worktrees/*'),
-			false, true, false // ignoreChangeEvents
-		)
-		const refreshRepoItem = () => provider.refresh(this)
-		headWatcher.onDidChange(refreshRepoItem)
-		worktreeWatcher.onDidCreate(refreshRepoItem)
-		worktreeWatcher.onDidDelete(refreshRepoItem)
-
-		this.#watchers.push(headWatcher, worktreeWatcher)
-	}
-
-	dispose() {
-		clearDisposables(this.#watchers)
-	}
-}
-
-/** @template { boolean } [T = boolean] */
-export class WorktreeItem extends vscode.TreeItem {
-	/**
-	 * @this { WorktreeItem }
-	 * @param { RepoItem } repo
-	 * @param { Worktree<T> } worktree
-	 */
-	constructor(repo, worktree) {
-		super(worktree.branch || basename(worktree.path))
-		this.id = worktree.path
-		/** @readonly */
-		this.contextValue = /** @type { const } */('worktree')
-		this.description = worktree.path
-		this.iconPath = new vscode.ThemeIcon(worktree.isMain ? 'root-folder' : 'folder')
-		this.tooltip = 'Open Worktree'
-		this.isMain = worktree.isMain
-		this.$repo = repo
-	}
-}
-
-/**
  * @implements { vscode.TreeDataProvider<RepoItem | WorktreeItem> }
  */
-class WorktreeProvider {
+export class WorktreeProvider {
 	/** @type { Map<string, RepoItem> } */
 	#repos = new Map()
 	/** @type { Map<string, string> } */
@@ -192,4 +110,84 @@ class WorktreeProvider {
 	}
 }
 
-export const worktreeProvider = new WorktreeProvider()
+export class RepoItem extends vscode.TreeItem {
+	/** @type { vscode.FileSystemWatcher[] } */
+	#watchers = []
+
+	/**
+	 * @param { WorktreeProvider } provider
+	 * @param { string } worktreePath
+	 * @param { string } commonDir
+	 * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
+	 */
+	constructor(provider, worktreePath, commonDir, worktrees) {
+		const [mainWorktree] = worktrees
+		const mainBasename = basename(mainWorktree.path)
+		const label = mainBasename.toLowerCase() === mainWorktree.branch?.toLowerCase()
+			? basename(dirname(mainWorktree.path))
+			: mainBasename
+		
+		super(label, vscode.TreeItemCollapsibleState.Expanded)
+
+		/** @readonly */
+		this.id = `repo:${mainWorktree.path}`
+		this.iconPath = new vscode.ThemeIcon('repo')
+		/** @readonly */
+		this.contextValue = /** @type { const } */('repository')
+		/** @readonly */
+		this.mainPath = mainWorktree.path
+		/** @readonly */
+		this.openedWorktrees = new Set(worktreePath)
+		this.worktrees = createWorktreeItems(this, worktrees)
+
+		const commonDirUri = vscode.Uri.file(commonDir)
+		const headWatcher = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(commonDirUri, '{HEAD,worktrees/*/HEAD}'),
+			true, false, true // ignoreCreateEvents & ignoreDeleteEvents
+		)
+		const worktreeWatcher = vscode.workspace.createFileSystemWatcher(
+			new vscode.RelativePattern(commonDirUri, 'worktrees/*'),
+			false, true, false // ignoreChangeEvents
+		)
+		const refreshRepoItem = () => provider.refresh(this)
+		headWatcher.onDidChange(refreshRepoItem)
+		worktreeWatcher.onDidCreate(refreshRepoItem)
+		worktreeWatcher.onDidDelete(refreshRepoItem)
+
+		this.#watchers.push(headWatcher, worktreeWatcher)
+	}
+
+	dispose() {
+		clearDisposables(this.#watchers)
+	}
+}
+
+/** @template { boolean } [T = boolean] */
+export class WorktreeItem extends vscode.TreeItem {
+	/**
+	 * @this { WorktreeItem }
+	 * @param { RepoItem } repo
+	 * @param { Worktree<T> } worktree
+	 */
+	constructor(repo, worktree) {
+		super(worktree.branch || basename(worktree.path))
+		this.id = worktree.path
+		/** @readonly */
+		this.contextValue = /** @type { const } */('worktree')
+		this.description = worktree.path
+		this.iconPath = new vscode.ThemeIcon(worktree.isMain ? 'root-folder' : 'folder')
+		this.tooltip = 'Open Worktree'
+		this.isMain = worktree.isMain
+		this.$repo = repo
+	}
+}
+
+/**
+ * @param { RepoItem } repoItem 
+ * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
+ */
+function createWorktreeItems(repoItem, worktrees) {
+	return /** @type { [WorktreeItem<true>, ...WorktreeItem<false>[]] } */(
+		worktrees.map(w => new WorktreeItem(repoItem, w))
+	)
+}

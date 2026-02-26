@@ -1,19 +1,21 @@
 import * as vscode from 'vscode'
 import { isAbsolute, resolve } from 'node:path'
-import { worktreeProvider } from "./WorktreeProvider.js"
 import { runGit, isValidRef } from '../utils/git.js'
 
 /**
- * @import { RepoItem, WorktreeItem } from './WorktreeProvider.js'
+ * @import { WorktreeProvider, RepoItem, WorktreeItem } from './WorktreeProvider.js'
  */
 
 export function refreshGit() {
 	vscode.commands.executeCommand('git.refresh')
 }
 
-/** @param { RepoItem } repoItem */
+/**
+ * @this { WorktreeProvider }
+ * @param { RepoItem } repoItem
+ */
 export function refreshWorktrees(repoItem) {
-	worktreeProvider.refresh(repoItem)
+	this.refresh(repoItem)
 }
 
 /** @param { WorktreeItem } worktreeItem */

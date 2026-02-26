@@ -1,14 +1,19 @@
 import * as vscode from 'vscode'
-import { workspaceProvider } from "./WorkspaceProvider.js"
 
 /**
- * @import { WorkspaceItem } from './WorkspaceProvider.js'
+ * @import { WorkspaceProvider, WorkspaceItem } from './WorkspaceProvider.js'
  */
 
+/**
+ * @this { WorkspaceProvider }
+ */
 export function refreshWorkspaceDirectory() {
-	workspaceProvider.refresh()
+	this.refresh()
 }
 
+/**
+ * @this { WorkspaceProvider }
+ */
 export async function selectWorkspaceDirectory() {
 	const selection = await vscode.window.showOpenDialog({
 		canSelectFiles: false,
@@ -23,7 +28,7 @@ export async function selectWorkspaceDirectory() {
 			workspaceDir.fsPath,
 			vscode.ConfigurationTarget.Global
 		)
-		workspaceProvider.refresh()
+		this.refresh()
 	}
 }
 

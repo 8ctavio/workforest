@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
 import * as wsc from './workspace/commands.js'
 import * as wtc from './worktree/commands.js'
-import { workspaceProvider } from './workspace/WorkspaceProvider.js'
-import { worktreeProvider } from './worktree/WorktreeProvider.js'
+import { WorkspaceProvider } from './workspace/WorkspaceProvider.js'
+import { WorktreeProvider } from './worktree/WorktreeProvider.js'
 
 /**
  * @param { vscode.ExtensionContext } context 
@@ -10,12 +10,14 @@ import { worktreeProvider } from './worktree/WorktreeProvider.js'
 export function activate(context) {
 	const { commands } = vscode
 	const { subscriptions } = context
+	const workspaceProvider = new WorkspaceProvider()
+	const worktreeProvider = new WorktreeProvider()
 
 	for (const command of /** @type {(keyof typeof wsc)[]} */(Object.keys(wsc))) {
-		subscriptions.push(commands.registerCommand(`workforest.${command}`, wsc[command]))
+		subscriptions.push(commands.registerCommand(`workforest.${command}`, wsc[command], workspaceProvider))
 	}
 	for (const command of /** @type {(keyof typeof wtc)[]} */(Object.keys(wtc))) {
-		subscriptions.push(commands.registerCommand(`workforest.${command}`, wtc[command]))
+		subscriptions.push(commands.registerCommand(`workforest.${command}`, wtc[command], worktreeProvider))
 	}
 
 	subscriptions.push(
