@@ -46,8 +46,8 @@ export function runGit(cwd, args) {
 		})
 
 		git.on('exit', code => {
-			const stdout = Buffer.concat(stdoutChunks).toString()
-			const stderr = Buffer.concat(stderrChunks).toString()
+			const stdout = Buffer.concat(stdoutChunks).toString().trim()
+			const stderr = Buffer.concat(stderrChunks).toString().trim()
 			if (code === 0) {
 				resolve({ stdout, stderr })
 			} else {
