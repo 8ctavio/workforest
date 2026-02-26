@@ -20,10 +20,26 @@ export function useGit() {
 		.getAPI(1)
 }
 
+export class ExecutionError extends Error {
+	/**
+	 * @param { string } command
+	 * @param { readonly string[] } args
+	 * @param { number | null } exitCode
+	 * @param { string } stdout
+	 * @param { string } stderr
+	 */
+	constructor(command, args, exitCode, stdout, stderr) {
+		super(`Failed to execute command: \`${command} ${args.join(' ')}\`. ${stderr || stdout}`)
+		this.exitCode = exitCode
+		this.stdout = stdout
+		this.stderr = stderr
+	}
+}
+
 /**
  * @param { string } cwd
  * @param { readonly string[] } args
- * @returns { Promise<{ stdout: string, stderr: string }> }
+ * @returns { Promise<{ exitCode: number | null, stdout: string, stderr: string }> }
  */
 export function runGit(cwd, args) {
 	return new Promise((resolve, reject) => {
@@ -49,13 +65,13 @@ export function runGit(cwd, args) {
 			reject(error)
 		})
 
-		git.on('exit', code => {
+		git.on('exit', exitCode => {
 			const stdout = Buffer.concat(stdoutChunks).toString().trim()
 			const stderr = Buffer.concat(stderrChunks).toString().trim()
-			if (code === 0) {
-				resolve({ stdout, stderr })
+			if (exitCode === 0) {
+				resolve({ exitCode, stdout, stderr })
 			} else {
-				reject(`Failed to execute command: \`git ${args.join(' ')}\`. ${stderr}`)
+				reject(new ExecutionError('git', args, exitCode, stdout, stderr))
 			}
 		})
 	})
