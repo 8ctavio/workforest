@@ -178,6 +178,7 @@ export class WorktreeItem extends vscode.TreeItem {
 		this.iconPath = new vscode.ThemeIcon(worktree.isMain ? 'root-folder' : 'folder')
 		this.tooltip = 'Open Worktree'
 		this.isMain = worktree.isMain
+		this.branch = worktree.branch
 		this.$repo = repo
 	}
 }

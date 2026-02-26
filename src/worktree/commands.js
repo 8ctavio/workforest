@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { isAbsolute, resolve } from 'node:path'
-import { runGit, isValidRef } from '../utils/git.js'
+import { runGit, isValidRef, ExecutionError } from '../utils/git.js'
 
 /**
  * @import { WorktreeProvider, RepoItem, WorktreeItem } from './WorktreeProvider.js'
@@ -62,20 +62,71 @@ export async function addWorktree(repoItem) {
 
 /** @param { WorktreeItem } worktreeItem */
 export async function removeWorktree(worktreeItem) {
+	const { window } = vscode
+
 	if (worktreeItem.isMain) {
-		vscode.window.showInformationMessage("A repository's main worktree cannot be deleted.")
+		window.showInformationMessage("A repository's main worktree cannot be deleted.")
 		return
 	}
 
-	const selection = await vscode.window.showWarningMessage(`Remove Worktree (${worktreeItem.$repo.label})`, {
+	const removeWorktree = await window.showWarningMessage(`Remove Worktree (${worktreeItem.$repo.label})`, {
 		modal: true,
 		detail: `Remove worktree at ${worktreeItem.id}`
-	}, "Remove", "Force Remove")
+	}, "Remove")
+	if (!removeWorktree) return
 
-	if (selection) {
-		const args = ['worktree', 'remove']
-		if (selection === 'Force Remove') args.push('--force')
-		args.push(worktreeItem.id)
-		await runGit(worktreeItem.$repo.mainPath, args)
+	try {
+		await runGit(worktreeItem.$repo.mainPath, ['worktree', 'remove', worktreeItem.id])
+		await onWorktreeRemoved(worktreeItem)
+	} catch (error) {
+		if (!(error instanceof ExecutionError)) throw error
+
+		const forceRemoveWorktree = await window.showErrorMessage(
+			`[Failed to remove worktree] ${error.stderr || error.stdout}`,
+			"Force Remove"
+		)
+		if (!forceRemoveWorktree) return
+
+		try {
+			await runGit(worktreeItem.$repo.mainPath, ['worktree', 'remove', '--force', worktreeItem.id])
+			await onWorktreeRemoved(worktreeItem)
+		} catch (error) {
+			if (!(error instanceof ExecutionError)) throw error
+			window.showErrorMessage(`[Failed to force remove worktree] ${error.stderr || error.stdout}`)
+		}
+	}
+}
+
+/** @param { WorktreeItem } worktreeItem */
+async function onWorktreeRemoved(worktreeItem) {
+	const { branch } = worktreeItem
+	if (!branch) return
+
+	const { window } = vscode
+	const deleteBranch = await window.showInformationMessage(`Delete "${branch}" branch?`, {
+		modal: true,
+		detail: `This branch was checked out by the worktree at ${worktreeItem.id}, which was recently removed from the "${worktreeItem.$repo.label}" repository.`
+	}, "Delete")
+	if (!deleteBranch) return
+
+	try {
+		await runGit(worktreeItem.$repo.mainPath, ['branch', '-d', branch])
+		window.setStatusBarMessage(`Deleted "${branch}" branch`, 3000)
+	} catch (error) {
+		if (!(error instanceof ExecutionError)) throw error
+
+		const forceDeleteBranch = await window.showErrorMessage(
+			`[Failed to delete branch] ${error.stderr || error.stdout}`,
+			"Force Delete"
+		)
+		if (!forceDeleteBranch) return
+		
+		try {
+			await runGit(worktreeItem.$repo.mainPath, ['branch', '-D', branch])
+			window.setStatusBarMessage(`Force deleted "${branch}" branch`, 3000)
+		} catch (error) {
+			if (!(error instanceof ExecutionError)) throw error
+			window.showErrorMessage(`[Failed to force delete branch] ${error.stderr || error.stdout}`)
+		}
 	}
 }
