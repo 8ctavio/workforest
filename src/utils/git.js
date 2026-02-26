@@ -2,9 +2,11 @@ import { spawn } from "node:child_process"
 import * as vscode from 'vscode'
 
 /**
- * @import { GitExtension } from '../dts/git.d.ts'
+ * @import { GitExtension, API } from '../dts/git.d.ts'
  */
 
+/** @type { API } */
+let gitApi
 /** @type { string } */
 let gitCommand
 
@@ -12,14 +14,16 @@ let gitCommand
  * @see https://github.com/microsoft/vscode/blob/main/extensions/git/README.md
  */
 export function useGit() {
-	const gitExtension = /** @type { vscode.Extension<GitExtension> } */
+	return gitApi ??= /** @type { vscode.Extension<GitExtension> } */
 		(vscode.extensions.getExtension('vscode.git'))
-	return gitExtension.exports.getAPI(1)
+		.exports
+		.getAPI(1)
 }
 
 /**
  * @param { string } cwd
- * @param { readonly string[] } args 
+ * @param { readonly string[] } args
+ * @returns { Promise<{ stdout: string, stderr: string }> }
  */
 export function runGit(cwd, args) {
 	return new Promise((resolve, reject) => {
