@@ -1,5 +1,6 @@
+import * as vscode from "vscode"
 import { spawn } from "node:child_process"
-import * as vscode from 'vscode'
+import { normalizeWorktreePath } from "./path.js"
 
 /**
  * @import { GitExtension, API } from '../dts/git.d.ts'
@@ -80,8 +81,9 @@ export function runGit(cwd, args) {
 /**
  * @template { boolean } [T = boolean]
  * @typedef { object } Worktree
- * @property { string } path
  * @property { T } isMain
+ * @property { string } path
+ * @property { string } normalizedPath
  * @property { string } [HEAD]
  * @property { string } [branch]
  * @property { string | true } [locked]
@@ -125,6 +127,7 @@ export async function getWorktrees(path) {
 
 		if (key === 'worktree') {
 			worktree.path = value
+			worktree.normalizedPath = normalizeWorktreePath(/**@type {string}*/(value))
 		} else if (key === 'branch' && typeof value === 'string' && value.startsWith('refs/heads/')) {
 			worktree.branch = value.slice('refs/heads/'.length)
 		} else {
