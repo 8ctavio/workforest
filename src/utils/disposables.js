@@ -1,5 +1,5 @@
 /**
- * @import { DisposableCollection } from './dispose.types.js' 
+ * @import { DisposableCollection } from './disposables.types.js' 
  */
 
 /** @param { DisposableCollection } disposableCollection */

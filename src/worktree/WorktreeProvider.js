@@ -2,11 +2,12 @@ import * as vscode from 'vscode'
 import { basename, dirname } from 'node:path'
 import { useGit, runGit, getWorktrees } from '../utils/git.js'
 import { clearDisposables } from '../utils/dispose.js'
+import { clearDisposables } from '../utils/disposables.js'
 
 /**
  * @import { Repository } from '../dts/git.js'
  * @import { Worktree } from '../utils/git.js'
- * @import { DisposableLike } from '../utils/dispose.types.js'
+ * @import { DisposableLike } from '../utils/disposables.types.js'
  */
 
 /**
