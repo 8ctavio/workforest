@@ -6,13 +6,9 @@ import { runGit, isValidRef, ExecutionError } from '../utils/git.js'
  * @import { WorktreeProvider, RepoItem, WorktreeItem } from './WorktreeProvider.js'
  */
 
-export function refreshGit() {
-	vscode.commands.executeCommand('git.refresh')
-}
-
 /**
  * @this { WorktreeProvider }
- * @param { RepoItem } repoItem
+ * @param { RepoItem } [repoItem]
  */
 export function refreshWorktrees(repoItem) {
 	this.refresh(repoItem)

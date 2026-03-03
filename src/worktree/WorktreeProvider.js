@@ -36,11 +36,11 @@ export class WorktreeProvider {
 	onDidChangeTreeData = this.#changeTreeDataEmitter.event
 
 	constructor() {
-		const git = useGit()
+		this.#restart()
 		
 		/** @type { OnDidChangeOpenStatus } */
 		const onDidChangeOpenStatus = worktreeItem => this.notify(worktreeItem)
-
+		const git = useGit()
 		this.#disposables.push(
 			this.#repos,
 			this.#changeTreeDataEmitter,
@@ -63,8 +63,6 @@ export class WorktreeProvider {
 				})
 			})
 		)
-
-		this.#init(git)
 	}
 
 	/** @param { RepoItem | WorktreeItem } [element] */
@@ -74,7 +72,10 @@ export class WorktreeProvider {
 
 	/** @param { RepoItem | WorktreeItem } [element] */
 	async refresh(element) {
-		if (element?.contextValue === 'repository') {
+		if (!element) {
+			await this.#restart()
+			this.notify()
+		} else if (element.contextValue === 'repository') {
 			element.refreshWorktrees(await getWorktrees(element.mainPath))
 			this.notify(element)
 		}
@@ -95,23 +96,30 @@ export class WorktreeProvider {
 	}
 
 	dispose() {
-		clearDisposables(this.#disposables)
 		this.#worktreeMainRepo.clear()
+		clearDisposables(this.#disposables)
 	}
 
-	/** @param { ReturnType<typeof useGit> } git */
-	async #init(git) {
-		if (git.repositories.length > 0) {
-			for (const repo of git.repositories) {
+	async #restart() {
+		this.#worktreeMainRepo.clear()
+		clearDisposables(this.#repos)
+
+		const { repositories } = useGit()
+		if (repositories.length > 0) {
+			for (const repo of repositories) {
 				await this.#handleOpenedRepository(repo, false)
 			}
-			this.notify()
 		}
 	}
 
 	/**
 	 * @param { Repository } repository
 	 * @param { boolean } [shouldNotify]
+	 * 
+	 * @TODO
+	 *   - Synchronously register worktreePath to #worktreeMainRepo
+	 *   - Once commonDir is available, synchronously create and register RepoItem
+	 *   - Asynchronously update RepoItem's worktrees with AbortController signal support
 	 */
 	async #handleOpenedRepository(repository, shouldNotify = true) {
 		const worktreeUri = repository.rootUri

@@ -46,10 +46,6 @@
 				"title": "Refresh Worktrees",
 				"icon": "$(refresh)"
 			},{
-				"command": "workforest.refreshGit",
-				"title": "Refresh Git",
-				"icon": "$(refresh)"
-			},{
 				"command": "workforest.selectWorkspaceDirectory",
 				"title": "Select Workspace Directory",
 				"icon": "$(folder)"
@@ -101,7 +97,7 @@
 			"view/title": [
 				{
 					"when": "view == worktrees",
-					"command": "workforest.refreshGit",
+					"command": "workforest.refreshWorktrees",
 					"group": "navigation"
 				},{
 					"when": "view == workspaces",
