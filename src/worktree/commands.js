@@ -60,12 +60,24 @@ export async function addWorktree(repoItem) {
 	}
 }
 
-/** @param { WorktreeItem } worktreeItem */
+/**
+ * @this { WorktreeProvider }
+ * @param { WorktreeItem } worktreeItem
+ */
 export async function removeWorktree(worktreeItem) {
 	const { window } = vscode
 
 	if (worktreeItem.isMain) {
 		window.showInformationMessage("A repository's main worktree cannot be deleted.")
+		return
+	} else if (worktreeItem.checkOpenStatus(item => this.notify(item))) {
+		const worktreeLabel = worktreeItem.branch
+			? `with branch "${worktreeItem.branch}" checked out`
+			: `at ${worktreeItem.description}`
+		window.showWarningMessage(
+			`The "${worktreeItem.$repo.label}" worktree ${worktreeLabel} is currently open in the workspace; ` +
+			'it should be closed before trying to remove it.'
+		)
 		return
 	}
 
