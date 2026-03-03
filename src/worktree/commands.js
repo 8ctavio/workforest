@@ -22,7 +22,7 @@ export function refreshWorktrees(repoItem) {
 export function openWorktreeInNewWindow(worktreeItem) {
 	vscode.commands.executeCommand(
 		"vscode.openFolder",
-		vscode.Uri.file(worktreeItem.id),
+		vscode.Uri.file(worktreeItem.description),
 		{ forceNewWindow: true }
 	)
 }
@@ -31,7 +31,7 @@ export function openWorktreeInNewWindow(worktreeItem) {
 export function revealWorktreeInFileExplorer(worktreeItem) {
 	vscode.commands.executeCommand(
 		"revealFileInOS", 
-		vscode.Uri.file(worktreeItem.id)
+		vscode.Uri.file(worktreeItem.description)
 	)
 }
 
@@ -71,12 +71,12 @@ export async function removeWorktree(worktreeItem) {
 
 	const removeWorktree = await window.showWarningMessage(`Remove Worktree (${worktreeItem.$repo.label})`, {
 		modal: true,
-		detail: `Remove worktree at ${worktreeItem.id}`
+		detail: `Remove worktree at ${worktreeItem.description}`
 	}, "Remove")
 	if (!removeWorktree) return
 
 	try {
-		await runGit(worktreeItem.$repo.mainPath, ['worktree', 'remove', worktreeItem.id])
+		await runGit(worktreeItem.$repo.mainPath, ['worktree', 'remove', worktreeItem.description])
 		await onWorktreeRemoved(worktreeItem)
 	} catch (error) {
 		if (!(error instanceof ExecutionError)) throw error
@@ -88,7 +88,7 @@ export async function removeWorktree(worktreeItem) {
 		if (!forceRemoveWorktree) return
 
 		try {
-			await runGit(worktreeItem.$repo.mainPath, ['worktree', 'remove', '--force', worktreeItem.id])
+			await runGit(worktreeItem.$repo.mainPath, ['worktree', 'remove', '--force', worktreeItem.description])
 			await onWorktreeRemoved(worktreeItem)
 		} catch (error) {
 			if (!(error instanceof ExecutionError)) throw error
@@ -105,7 +105,7 @@ async function onWorktreeRemoved(worktreeItem) {
 	const { window } = vscode
 	const deleteBranch = await window.showInformationMessage(`Delete "${branch}" branch?`, {
 		modal: true,
-		detail: `This branch was checked out by the worktree at ${worktreeItem.id}, which was recently removed from the "${worktreeItem.$repo.label}" repository.`
+		detail: `This branch was checked out by the worktree at ${worktreeItem.description}, which was recently removed from the "${worktreeItem.$repo.label}" repository.`
 	}, "Delete")
 	if (!deleteBranch) return
 
