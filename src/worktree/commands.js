@@ -66,7 +66,7 @@ export async function removeWorktree(worktreeItem) {
 	if (worktreeItem.isMain) {
 		window.showInformationMessage("A repository's main worktree cannot be deleted.")
 		return
-	} else if (worktreeItem.checkOpenStatus(item => this.notify(item))) {
+	} else if (worktreeItem.checkOpenStatus(this.notify)) {
 		const worktreeLabel = worktreeItem.branch
 			? `with branch "${worktreeItem.branch}" checked out`
 			: `at ${worktreeItem.description}`

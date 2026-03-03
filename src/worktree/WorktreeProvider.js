@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import { basename, dirname } from 'node:path'
 import { useGit, runGit, getWorktrees } from '../utils/git.js'
+import { debounce } from '../utils/debounce.js'
 import { clearDisposables } from '../utils/disposables.js'
 import { normalizeWorktreePath, tryNormalizePath } from '../utils/path.js'
 
@@ -35,15 +36,39 @@ export class WorktreeProvider {
 
 	onDidChangeTreeData = this.#changeTreeDataEmitter.event
 
+	/** @param { RepoItem | WorktreeItem } [element] */
+	notify = element => this.#changeTreeDataEmitter.fire(element)
+	
+	refresh = debounce(
+		/** @param { RepoItem | WorktreeItem } [element] */
+		async element => {
+			if (!element) {
+				await this.#restart()
+				this.notify()
+			} else if (element.contextValue === 'repository') {
+				element.refreshWorktrees(await getWorktrees(element.mainPath))
+				this.notify(element)
+			}
+		},
+		300,
+		{ eager: true }
+	)
+
 	constructor() {
 		this.#restart()
 		
-		/** @type { OnDidChangeOpenStatus } */
-		const onDidChangeOpenStatus = worktreeItem => this.notify(worktreeItem)
 		const git = useGit()
+		const syncWorktreesOpenStatus = debounce(() => {
+			this.#repos.values().forEach(repo => {
+				repo.syncWorktreesOpenStatus(this.notify)
+			})
+		}, 200)
+
 		this.#disposables.push(
 			this.#repos,
 			this.#changeTreeDataEmitter,
+			syncWorktreesOpenStatus,
+			vscode.workspace.onDidChangeWorkspaceFolders(syncWorktreesOpenStatus),
 			git.onDidOpenRepository(this.#handleOpenedRepository, this),
 			git.onDidCloseRepository(worktree => {
 				const worktreePath = normalizeWorktreePath(worktree.rootUri)
@@ -56,29 +81,8 @@ export class WorktreeProvider {
 						this.notify()
 					}
 				}
-			}),
-			vscode.workspace.onDidChangeWorkspaceFolders(() => {
-				this.#repos.values().forEach(repo => {
-					repo.syncWorktreesOpenStatus(onDidChangeOpenStatus)
-				})
 			})
 		)
-	}
-
-	/** @param { RepoItem | WorktreeItem } [element] */
-	notify(element) {
-		this.#changeTreeDataEmitter.fire(element)
-	}
-
-	/** @param { RepoItem | WorktreeItem } [element] */
-	async refresh(element) {
-		if (!element) {
-			await this.#restart()
-			this.notify()
-		} else if (element.contextValue === 'repository') {
-			element.refreshWorktrees(await getWorktrees(element.mainPath))
-			this.notify(element)
-		}
 	}
 
 	/** @param { RepoItem | WorktreeItem } element */
