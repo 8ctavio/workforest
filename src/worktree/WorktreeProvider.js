@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { basename, dirname } from 'node:path'
+import { basename, dirname, resolve } from 'node:path'
 import { useGit, runGit, getWorktrees } from '../utils/git.js'
 import { debounce } from '../utils/debounce.js'
 import { clearDisposables } from '../utils/disposables.js'
@@ -18,7 +18,7 @@ import { normalizeWorktreePath, tryNormalizePath } from '../utils/path.js'
 /** @implements { vscode.TreeDataProvider<RepoItem | WorktreeItem> } */
 export class WorktreeProvider {
 	/**
-	 * key: repository's common-dir as returned by git's CLI
+	 * key: normalized repository's common-dir
 	 * @type { Map<string, RepoItem> }
 	 * @readonly
 	 */
@@ -56,7 +56,7 @@ export class WorktreeProvider {
 
 	constructor() {
 		this.#restart()
-		
+
 		const git = useGit()
 		const syncWorktreesOpenStatus = debounce(() => {
 			this.#repos.values().forEach(repo => {
@@ -122,21 +122,26 @@ export class WorktreeProvider {
 	 * 
 	 * @TODO
 	 *   - Synchronously register worktreePath to #worktreeMainRepo
-	 *   - Once commonDir is available, synchronously create and register RepoItem
+	 *   - Once rev-parse is executed, synchronously create and register RepoItem
 	 *   - Asynchronously update RepoItem's worktrees with AbortController signal support
 	 */
 	async #handleOpenedRepository(repository, shouldNotify = true) {
 		const worktreeUri = repository.rootUri
-		const { stdout: commonDir } = await runGit(worktreeUri.fsPath, [
+
+		const cwd = worktreeUri.fsPath
+		const { stdout } = await runGit(cwd, [
 			'rev-parse',
 			'--path-format=absolute',
 			'--git-common-dir'
 		])
 
-		let repo = this.#repos.get(commonDir)
+		const commonDir = resolve(cwd, stdout)
+		const repoId = normalizeWorktreePath(commonDir)
+
+		let repo = this.#repos.get(repoId)
 		if (!repo) {
-			repo = new RepoItem(this, commonDir, await getWorktrees(commonDir))
-			this.#repos.set(commonDir, repo)
+			repo = new RepoItem(this, repoId, commonDir, await getWorktrees(commonDir))
+			this.#repos.set(repoId, repo)
 			if (shouldNotify) this.notify()
 		}
 		
@@ -162,10 +167,11 @@ export class RepoItem extends vscode.TreeItem {
 
 	/**
 	 * @param { WorktreeProvider } provider
+	 * @param { string } repoId
 	 * @param { string } commonDir
 	 * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
 	 */
-	constructor(provider, commonDir, worktrees) {
+	constructor(provider, repoId, commonDir, worktrees) {
 		const [mainWorktree] = worktrees
 		const mainBasename = basename(mainWorktree.path)
 		const label = mainBasename.toLowerCase() === mainWorktree.branch?.toLowerCase()
@@ -177,7 +183,7 @@ export class RepoItem extends vscode.TreeItem {
 		/** @readonly */
 		this.contextValue = /** @type { const } */('repository')
 		/** @readonly */
-		this.id = commonDir
+		this.id = repoId
 		/** @readonly */
 		this.mainPath = mainWorktree.path
 
