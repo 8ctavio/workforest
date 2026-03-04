@@ -43,8 +43,7 @@ export class WorktreeProvider {
 		/** @param { RepoItem | WorktreeItem } [element] */
 		async element => {
 			if (!element) {
-				await this.#restart()
-				this.notify()
+				this.#restart()
 			} else if (element.contextValue === 'repository') {
 				element.refreshWorktrees(await getWorktrees(element.mainPath))
 				this.notify(element)
@@ -114,6 +113,8 @@ export class WorktreeProvider {
 				await this.#handleOpenedRepository(repo, false)
 			}
 		}
+
+		this.notify()
 	}
 
 	/**
