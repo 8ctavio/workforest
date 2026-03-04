@@ -66,7 +66,7 @@ export function runGit(cwd, args) {
 			reject(error)
 		})
 
-		git.on('exit', exitCode => {
+		git.on('close', exitCode => {
 			const stdout = Buffer.concat(stdoutChunks).toString().trim()
 			const stderr = Buffer.concat(stderrChunks).toString().trim()
 			if (exitCode === 0) {
