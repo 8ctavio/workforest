@@ -34,6 +34,10 @@
 				"title": "Remove Worktree",
 				"icon": "$(trash)"
 			},{
+				"command": "workforest.openWorktree",
+				"title": "Open Worktree",
+				"icon": "$(window)"
+			},{
 				"command": "workforest.openWorktreeInNewWindow",
 				"title": "Open Worktree in New Window",
 				"icon": "$(empty-window)"

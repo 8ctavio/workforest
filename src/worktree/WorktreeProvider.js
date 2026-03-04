@@ -266,6 +266,12 @@ export class WorktreeItem extends vscode.TreeItem {
 		this.isMain = worktree.isMain
 		/** @readonly */
 		this.$repo = repo
+		/** @readonly */
+		this.command = {
+			title: 'Open Worktree',
+			command: 'workforest.openWorktree',
+			arguments: [this]
+		}
 		
 		this.branch = worktree.branch
 	}

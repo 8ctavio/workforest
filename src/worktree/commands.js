@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import { isAbsolute, resolve } from 'node:path'
 import { runGit, isValidRef, ExecutionError } from '../utils/git.js'
+import { tryNormalizePath } from '../utils/path.js'
 
 /**
  * @import { WorktreeProvider, RepoItem, WorktreeItem } from './WorktreeProvider.js'
@@ -29,6 +30,95 @@ export function revealWorktreeInFileExplorer(worktreeItem) {
 		"revealFileInOS", 
 		vscode.Uri.file(worktreeItem.description)
 	)
+}
+
+/** @param { WorktreeItem } worktreeItem */
+export async function openWorktree(worktreeItem) {
+	const worktreeUri = vscode.Uri.file(worktreeItem.description)
+	
+	/** @type { { index: number, uri?: vscode.Uri, name?: string } | undefined } */
+	let target = { index: 0 }
+	let pushWorkspaceFolder = false
+	
+	const { workspaceFolders } = vscode.workspace
+	if (workspaceFolders?.length) {
+		/** @type { Array<vscode.WorkspaceFolder & { path: string, branch?: string }> } */
+		const targets = []
+		for (const folder of workspaceFolders) {
+			const folderPath = tryNormalizePath(folder.uri)
+			if (folderPath) {
+				if (folderPath === worktreeItem.id) {
+					const worktreeLabel = worktreeItem.branch
+						? `with branch "${worktreeItem.branch}" checked out`
+						: `at ${worktreeItem.description}`
+					vscode.window.showInformationMessage(
+						`The "${worktreeItem.$repo.label}" worktree (${worktreeLabel}) ` +
+						"is already open as a root workspace folder."
+					)
+					return
+				} else {
+					for (const worktree of worktreeItem.$repo.worktrees.values()) {
+						if (folderPath === worktree.id) {
+							targets.push({
+								...folder,
+								path: worktree.description,
+								branch: worktree.branch
+							})
+						}
+					}
+				}
+			}
+		}
+
+		if (targets.length === 1) {
+			[target] = targets
+		} else if (targets.length > 1) {
+			const selection = await vscode.window.showQuickPick(targets.map(worktreeFolder => ({
+				label: worktreeFolder.name,
+				description: worktreeFolder.path,
+				detail: `$(git-branch) ${worktreeFolder.branch || 'No branch checked out'}`,
+				iconPath: new vscode.ThemeIcon('root-folder-opened'),
+				folder: worktreeFolder
+			})), {
+				title: 'Select Workspace Folder to Replace',
+				prompt: `Choose which workspace folder to replace with worktree ${worktreeItem.description}`,
+				placeHolder: 'Filter Workspace Folders',
+				matchOnDescription: true,
+				matchOnDetail: true
+			})
+			target = selection?.folder
+		} else {
+			const selection = await vscode.window.showInformationMessage(
+				"Worktrees may only replace workspace-root worktrees from the same repository; " +
+				`no matching folders to replace were found for "${worktreeItem.description}". ` +
+				"The worktree can be added as a new workspace folder instead.",
+				'Add as New Workspace Folder'
+			)
+			if (selection) {
+				const index = vscode.workspace.workspaceFolders?.length
+				if (index) {
+					pushWorkspaceFolder = true
+					target.index = index
+				}
+			} else {
+				target = undefined
+			}
+		}
+	}
+
+	if (target) {
+		const { workspaceFile } = vscode.workspace
+		if (pushWorkspaceFolder || workspaceFile) {
+			vscode.workspace.updateWorkspaceFolders(target.index, pushWorkspaceFolder ? 0 : 1, {
+				uri: worktreeUri,
+				name: workspaceFile?.scheme === 'untitled'
+					? worktreeItem.$repo.label + (worktreeItem.branch ? ` (${worktreeItem.branch})` : '')
+					: target.name || /**@type {string}*/(worktreeItem.$repo.label)
+			})
+		} else {
+			vscode.commands.executeCommand('vscode.openFolder', worktreeUri)
+		}
+	}
 }
 
 /** @param { RepoItem } repoItem */
@@ -113,7 +203,9 @@ async function onWorktreeRemoved(worktreeItem) {
 	const { window } = vscode
 	const deleteBranch = await window.showInformationMessage(`Delete "${branch}" branch?`, {
 		modal: true,
-		detail: `This branch was checked out by the worktree at ${worktreeItem.description}, which was recently removed from the "${worktreeItem.$repo.label}" repository.`
+		detail:
+			`This branch was checked out by the worktree at ${worktreeItem.description}, ` +
+			`which was recently removed from the "${worktreeItem.$repo.label}" repository.`
 	}, "Delete")
 	if (!deleteBranch) return
 
