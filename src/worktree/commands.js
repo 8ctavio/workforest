@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import { isAbsolute, resolve } from 'node:path'
 import { runGit, isValidRef, ExecutionError } from '../utils/git.js'
-import { tryNormalizePath } from '../utils/path.js'
+import { tryNormalizePath, clipPath } from '../utils/path.js'
 
 /**
  * @import { WorktreeProvider, RepoItem, WorktreeItem } from './WorktreeProvider.js'
@@ -50,7 +50,7 @@ export async function openWorktree(worktreeItem) {
 				if (folderPath === worktreeItem.id) {
 					const worktreeLabel = worktreeItem.branch
 						? `with branch "${worktreeItem.branch}" checked out`
-						: `at ${worktreeItem.description}`
+						: `at ${clipPath(worktreeItem.description)}`
 					vscode.window.showInformationMessage(
 						`The "${worktreeItem.$repo.label}" worktree (${worktreeLabel}) ` +
 						"is already open as a root workspace folder."
@@ -81,7 +81,7 @@ export async function openWorktree(worktreeItem) {
 				folder: worktreeFolder
 			})), {
 				title: 'Select Workspace Folder to Replace',
-				prompt: `Choose which workspace folder to replace with worktree ${worktreeItem.description}`,
+				prompt: `Choose which workspace folder to replace with worktree "${worktreeItem.description}"`,
 				placeHolder: 'Filter Workspace Folders',
 				matchOnDescription: true,
 				matchOnDetail: true
@@ -90,7 +90,7 @@ export async function openWorktree(worktreeItem) {
 		} else {
 			const selection = await vscode.window.showInformationMessage(
 				"Worktrees may only replace workspace-root worktrees from the same repository; " +
-				`no matching folders to replace were found for "${worktreeItem.description}". ` +
+				`no matching folders to replace were found for "${clipPath(worktreeItem.description)}". ` +
 				"The worktree can be added as a new workspace folder instead.",
 				'Add as New Workspace Folder'
 			)
@@ -159,7 +159,7 @@ export async function removeWorktree(worktreeItem) {
 	} else if (worktreeItem.checkOpenStatus(this.notify)) {
 		const worktreeLabel = worktreeItem.branch
 			? `with branch "${worktreeItem.branch}" checked out`
-			: `at ${worktreeItem.description}`
+			: `at "${clipPath(worktreeItem.description)}"`
 		window.showWarningMessage(
 			`The "${worktreeItem.$repo.label}" worktree ${worktreeLabel} is currently open in the workspace; ` +
 			'it should be closed before trying to remove it.'
@@ -204,7 +204,7 @@ async function onWorktreeRemoved(worktreeItem) {
 	const deleteBranch = await window.showInformationMessage(`Delete "${branch}" branch?`, {
 		modal: true,
 		detail:
-			`This branch was checked out by the worktree at ${worktreeItem.description}, ` +
+			`This branch was checked out by the worktree at "${clipPath(worktreeItem.description)}", ` +
 			`which was recently removed from the "${worktreeItem.$repo.label}" repository.`
 	}, "Delete")
 	if (!deleteBranch) return
