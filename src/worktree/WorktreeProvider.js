@@ -105,7 +105,17 @@ export class WorktreeProvider {
 	/** @param { RepoItem | WorktreeItem } [element] */
 	getChildren(element) {
 		if (!element) {
-			return this.#repos.values().toArray()
+			const workspaceRepos = new Set()
+			const { workspaceFolders } = vscode.workspace
+			if (workspaceFolders) {
+				for (const { uri } of workspaceFolders) {
+					const repo = this.#rootFolders.get(uri.toString())
+					if (repo instanceof RepoItem) {
+						workspaceRepos.add(repo)
+					}
+				}
+			}
+			return Array.from(workspaceRepos)
 		} else if (element.contextValue === 'repository') {
 			return element.worktrees
 		}
