@@ -55,24 +55,31 @@ export class WorktreeProvider {
 	constructor() {
 		this.#restart()
 
+		let pendingPromises = 0
+		function onSettled() {
+			if (--pendingPromises === 0) syncWorktreesState()
+		}
 		const syncWorktreesState = debounce(() => {
 			const normalizedFolders = getNormalizedWorkspaceFolders()
-			if (normalizedFolders) {
-				this.#repos.values().forEach(repo => {
+			for (const repo of this.#repos.values()) {
+				if (repo.rootFolders.size === 0) {
+					repo.dispose()
+					this.#repos.delete(repo.id)
+				} else if (normalizedFolders) {
 					for (const worktree of repo.worktrees) {
 						worktree.syncOpenStatus(normalizedFolders)
 					}
-				})
+				}
 			}
 			this.notify()
 		}, 200)
-
+		
 		this.#disposables.push(
 			this.#repos,
 			this.#changeTreeDataEmitter,
 			syncWorktreesState,
 			vscode.workspace.onDidChangeWorkspaceFolders(async ({ added, removed }) => {
-				const promise = this.#handleWorkspaceFolders(added)
+				syncWorktreesState.dispose()
 				for (const folder of removed) {
 					const folderId = folder.uri.toString()
 					const value = this.#rootFolders.get(folderId)
@@ -80,14 +87,12 @@ export class WorktreeProvider {
 						this.#rootFolders.delete(folderId)
 						if (value instanceof AbortController) {
 							value.abort()
-						} else if (value.rootFolders.delete(folderId) && value.rootFolders.size === 0) {
-							value.dispose()
-							this.#repos.delete(value.id)
+						} else {
+							value.rootFolders.delete(folderId)
 						}
 					}
 				}
-				await promise
-				syncWorktreesState()
+				this.#handleAddedFolders(added).finally((pendingPromises++, onSettled))
 			})
 		)
 	}
@@ -114,14 +119,13 @@ export class WorktreeProvider {
 	async #restart() {
 		this.#rootFolders.clear()
 		clearDisposables(this.#repos)
-		await this.#handleWorkspaceFolders()
+		await this.#handleAddedFolders()
 		this.notify()
 	}
 
 	/** @param { readonly vscode.WorkspaceFolder[] | undefined } workspaceFolders */
-	async #handleWorkspaceFolders(workspaceFolders = vscode.workspace.workspaceFolders) {
+	async #handleAddedFolders(workspaceFolders = vscode.workspace.workspaceFolders) {
 		if (!workspaceFolders) return
-		
 		return Promise.all(workspaceFolders.map(async folder => {
 			const { uri } = folder
 			const folderId = uri.toString()
