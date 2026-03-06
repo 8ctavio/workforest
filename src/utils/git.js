@@ -1,5 +1,6 @@
 import * as vscode from "vscode"
 import { spawn } from "node:child_process"
+import { resolve } from "node:path"
 import { normalizeWorktreePath } from "./path.js"
 
 /**
@@ -147,6 +148,23 @@ export async function getWorktrees(path, options) {
 		idx = attrEnd + 1
 	}
 	return worktrees
+}
+
+/**
+ * @param { string } path
+ * @param { RunGitOptions } [options]
+ */
+export async function getWorktreeCommonDir(path, options) {
+	try {
+		const { stdout } = await runGit(path, ['rev-parse', '--path-format=absolute', '--git-common-dir'], options)
+		return resolve(path, stdout)
+	} catch(error) {
+		if (error instanceof DOMException && error.name === 'AbortError') {
+			throw error
+		} else {
+			return null
+		}
+	}
 }
 
 /**

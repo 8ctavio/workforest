@@ -1,12 +1,11 @@
 import * as vscode from 'vscode'
-import { basename, dirname, resolve } from 'node:path'
-import { useGit, runGit, getWorktrees } from '../utils/git.js'
+import { basename, dirname } from 'node:path'
+import { getWorktrees, getWorktreeCommonDir } from '../utils/git.js'
 import { debounce } from '../utils/debounce.js'
 import { clearDisposables } from '../utils/disposables.js'
 import { normalizeWorktreePath, tryNormalizePath } from '../utils/path.js'
 
 /**
- * @import { Repository } from '../dts/git.js'
  * @import { Worktree } from '../utils/git.js'
  * @import { DisposableLike } from '../utils/disposables.types.js'
  */
@@ -24,11 +23,11 @@ export class WorktreeProvider {
 	 */
 	#repos = new Map()
 	/**
-	 * key: normalized worktree path
-	 * @type { Map<string, RepoItem> }
+	 * key: workspace folder uri's string representation
+	 * @type { Map<string, RepoItem | AbortController> }
 	 * @readonly
 	 */
-	#worktreeMainRepo = new Map()
+	#rootFolders = new Map()
 	/** @type { Array<DisposableLike | Map<any, DisposableLike>> } */
 	#disposables = []
 	/** @type { vscode.EventEmitter<RepoItem | WorktreeItem | undefined | null | void> } */
@@ -56,30 +55,39 @@ export class WorktreeProvider {
 	constructor() {
 		this.#restart()
 
-		const git = useGit()
-		const syncWorktreesOpenStatus = debounce(() => {
-			this.#repos.values().forEach(repo => {
-				repo.syncWorktreesOpenStatus(this.notify)
-			})
+		const syncWorktreesState = debounce(() => {
+			const normalizedFolders = getNormalizedWorkspaceFolders()
+			if (normalizedFolders) {
+				this.#repos.values().forEach(repo => {
+					for (const worktree of repo.worktrees) {
+						worktree.syncOpenStatus(normalizedFolders)
+					}
+				})
+			}
+			this.notify()
 		}, 200)
 
 		this.#disposables.push(
 			this.#repos,
 			this.#changeTreeDataEmitter,
-			syncWorktreesOpenStatus,
-			vscode.workspace.onDidChangeWorkspaceFolders(syncWorktreesOpenStatus),
-			git.onDidOpenRepository(this.#handleOpenedRepository, this),
-			git.onDidCloseRepository(worktree => {
-				const worktreePath = normalizeWorktreePath(worktree.rootUri)
-				const repo = this.#worktreeMainRepo.get(worktreePath)
-				if (repo) {
-					this.#worktreeMainRepo.delete(worktreePath)
-					if (repo.vscodeWorktrees.delete(worktreePath) && repo.vscodeWorktrees.size === 0) {
-						repo.dispose()
-						this.#repos.delete(repo.id)
-						this.notify()
+			syncWorktreesState,
+			vscode.workspace.onDidChangeWorkspaceFolders(async ({ added, removed }) => {
+				const promise = this.#handleWorkspaceFolders(added)
+				for (const folder of removed) {
+					const folderId = folder.uri.toString()
+					const value = this.#rootFolders.get(folderId)
+					if (value) {
+						this.#rootFolders.delete(folderId)
+						if (value instanceof AbortController) {
+							value.abort()
+						} else if (value.rootFolders.delete(folderId) && value.rootFolders.size === 0) {
+							value.dispose()
+							this.#repos.delete(value.id)
+						}
 					}
 				}
+				await promise
+				syncWorktreesState()
 			})
 		)
 	}
@@ -99,56 +107,51 @@ export class WorktreeProvider {
 	}
 
 	dispose() {
-		this.#worktreeMainRepo.clear()
+		this.#rootFolders.clear()
 		clearDisposables(this.#disposables)
 	}
 
 	async #restart() {
-		this.#worktreeMainRepo.clear()
+		this.#rootFolders.clear()
 		clearDisposables(this.#repos)
-
-		const { repositories } = useGit()
-		if (repositories.length > 0) {
-			for (const repo of repositories) {
-				await this.#handleOpenedRepository(repo, false)
-			}
-		}
-
+		await this.#handleWorkspaceFolders()
 		this.notify()
 	}
 
-	/**
-	 * @param { Repository } repository
-	 * @param { boolean } [shouldNotify]
-	 * 
-	 * @TODO
-	 *   - Synchronously register worktreePath to #worktreeMainRepo
-	 *   - Once rev-parse is executed, synchronously create and register RepoItem
-	 *   - Asynchronously update RepoItem's worktrees with AbortController signal support
-	 */
-	async #handleOpenedRepository(repository, shouldNotify = true) {
-		const worktreeUri = repository.rootUri
-
-		const cwd = worktreeUri.fsPath
-		const { stdout } = await runGit(cwd, [
-			'rev-parse',
-			'--path-format=absolute',
-			'--git-common-dir'
-		])
-
-		const commonDir = resolve(cwd, stdout)
-		const repoId = normalizeWorktreePath(commonDir)
-
-		let repo = this.#repos.get(repoId)
-		if (!repo) {
-			repo = new RepoItem(this, repoId, commonDir, await getWorktrees(commonDir))
-			this.#repos.set(repoId, repo)
-			if (shouldNotify) this.notify()
-		}
+	/** @param { readonly vscode.WorkspaceFolder[] | undefined } workspaceFolders */
+	async #handleWorkspaceFolders(workspaceFolders = vscode.workspace.workspaceFolders) {
+		if (!workspaceFolders) return
 		
-		const worktreePath = normalizeWorktreePath(worktreeUri)
-		repo.vscodeWorktrees.add(worktreePath)
-		this.#worktreeMainRepo.set(worktreePath, repo)
+		return Promise.all(workspaceFolders.map(async folder => {
+			const { uri } = folder
+			const folderId = uri.toString()
+			const controller = new AbortController()
+			this.#rootFolders.set(folderId, controller)
+			try {
+				const commonDir = await getWorktreeCommonDir(uri.fsPath, { signal: controller.signal })
+				if (commonDir) {
+					const repoId = normalizeWorktreePath(commonDir)
+					let repo = this.#repos.get(repoId)
+					if (!repo) {
+						repo = new RepoItem(
+							this,
+							repoId,
+							commonDir,
+							await getWorktrees(commonDir, { signal: controller.signal })
+						)
+						this.#repos.set(repoId, repo)
+					}
+					repo.rootFolders.add(folderId)
+					this.#rootFolders.set(folderId, repo)
+				} else {
+					this.#rootFolders.delete(folderId)
+				}
+			} catch(error) {
+				if (!(error instanceof DOMException) || error.name !== 'AbortError') {
+					throw error
+				}
+			}
+		}))
 	}
 }
 
@@ -160,11 +163,11 @@ export class RepoItem extends vscode.TreeItem {
 	// @ts-expect-error
 	worktrees
 	/**
-	 * Normalized paths of worktrees discovered by vscode
+	 * uri string representations of workspace folders
 	 * @type { Set<string> }
 	 * @readonly
 	 */
-	vscodeWorktrees = new Set()
+	rootFolders = new Set()
 
 	/**
 	 * @param { WorktreeProvider } provider
@@ -213,20 +216,10 @@ export class RepoItem extends vscode.TreeItem {
 	refreshWorktrees(worktrees) {
 		// @ts-expect-error
 		this.worktrees = worktrees.map(w => new WorktreeItem(this, w))
-		this.syncWorktreesOpenStatus()
- 	}
-
-	/** @param { OnDidChangeOpenStatus } [onDidChangeOpenStatus] */
-	syncWorktreesOpenStatus(onDidChangeOpenStatus) {
-		const { workspaceFolders } = vscode.workspace
-		if (workspaceFolders) {
-			const normalizedFolders = []
-			for (const { uri } of workspaceFolders) {
-				const path = tryNormalizePath(uri)
-				if (path) normalizedFolders.push(path)
-			}
+		const normalizedFolders = getNormalizedWorkspaceFolders()
+		if (normalizedFolders) {
 			for (const worktree of this.worktrees) {
-				worktree.syncOpenStatus(normalizedFolders, onDidChangeOpenStatus)
+				worktree.syncOpenStatus(normalizedFolders)
 			}
 		}
 	}
@@ -292,11 +285,8 @@ export class WorktreeItem extends vscode.TreeItem {
 		return this.#isOpen
 	}
 
-	/**
-	 * @param { readonly string[] } workspaceFolders normalized workspace root folder paths
-	 * @param { OnDidChangeOpenStatus } [onDidChangeOpenStatus]
-	 */
-	syncOpenStatus(workspaceFolders, onDidChangeOpenStatus) {
+	/** @param { readonly string[] } workspaceFolders normalized workspace root folder paths */
+	syncOpenStatus(workspaceFolders) {
 		let isOpen = false
 		for (const folderPath of workspaceFolders) {
 			if (this.#isOpenIn(folderPath)) {
@@ -304,10 +294,9 @@ export class WorktreeItem extends vscode.TreeItem {
 				break
 			}
 		}
-		this.#setIsOpen(isOpen, onDidChangeOpenStatus)
+		this.#setIsOpen(isOpen)
 	}
 
-	/** @param { boolean } isOpen */
 	/**
 	 * @param { boolean } isOpen 
 	 * @param { OnDidChangeOpenStatus } [onDidChangeOpenStatus] 
@@ -353,4 +342,19 @@ export class WorktreeItem extends vscode.TreeItem {
 
 		return false
 	}
+}
+
+/** @returns { readonly string[] | null } */
+function getNormalizedWorkspaceFolders() {
+	const { workspaceFolders } = vscode.workspace
+	/** @type { string[] | undefined } */
+	let normalizedFolders
+	if (workspaceFolders) {
+		normalizedFolders = []
+		for (const { uri } of workspaceFolders) {
+			const path = tryNormalizePath(uri)
+			if (path) normalizedFolders.push(path)
+		}
+	}
+	return normalizedFolders?.length ? normalizedFolders : null
 }
