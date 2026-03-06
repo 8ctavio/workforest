@@ -38,16 +38,23 @@ export class ExecutionError extends Error {
 }
 
 /**
+ * @typedef { object } RunGitOptions
+ * @property { AbortSignal } [signal]
+ */
+
+/**
  * @param { string } cwd
  * @param { readonly string[] } args
+ * @param { RunGitOptions } [options]
  * @returns { Promise<{ exitCode: number | null, stdout: string, stderr: string }> }
  */
-export function runGit(cwd, args) {
+export function runGit(cwd, args, { signal } = {}) {
 	return new Promise((resolve, reject) => {
 		gitCommand ??= process.platform === 'win32' ? useGit().git.path : 'git'
 		const git = spawn(gitCommand, args, {
 			cwd,
-			stdio: ['ignore', 'pipe', 'pipe']
+			stdio: ['ignore', 'pipe', 'pipe'],
+			signal
 		})
 
 		/** @type { Buffer[] } */
@@ -92,9 +99,12 @@ export function runGit(cwd, args) {
  * @property { true } [detached]
  */
 
-/** @param { string } path */
-export async function getWorktrees(path) {
-	const { stdout } = await runGit(path, ['worktree', 'list', '--porcelain', '-z'])
+/**
+ * @param { string } path
+ * @param { RunGitOptions } [options]
+ */
+export async function getWorktrees(path, options) {
+	const { stdout } = await runGit(path, ['worktree', 'list', '--porcelain', '-z'], options)
 
 	let idx = 0
 	/** @type { Record<string, unknown> } */
