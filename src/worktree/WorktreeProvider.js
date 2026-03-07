@@ -44,7 +44,7 @@ export class WorktreeProvider {
 			if (!element) {
 				this.#restart()
 			} else if (element.contextValue === 'repository') {
-				element.refreshWorktrees(await getWorktrees(element.mainPath))
+				await element.refreshWorktrees()
 				this.notify(element)
 			}
 		},
@@ -147,16 +147,12 @@ export class WorktreeProvider {
 					const repoId = normalizeWorktreePath(commonDir)
 					let repo = this.#repos.get(repoId)
 					if (!repo) {
-						repo = new RepoItem(
-							this,
-							repoId,
-							commonDir,
-							await getWorktrees(commonDir, { signal: controller.signal })
-						)
+						repo = new RepoItem(this, repoId, commonDir, controller)
 						this.#repos.set(repoId, repo)
 					}
 					repo.rootFolders.add(folderId)
 					this.#rootFolders.set(folderId, repo)
+					await repo.initialize
 				} else {
 					this.#rootFolders.delete(folderId)
 				}
@@ -170,12 +166,9 @@ export class WorktreeProvider {
 }
 
 export class RepoItem extends vscode.TreeItem {
-	/** @type { vscode.FileSystemWatcher[] } */
-	#watchers = []
+	#watchers
+	#controller
 	
-	/** @type { [WorktreeItem<true>, ...WorktreeItem<false>[]] } */
-	// @ts-expect-error
-	worktrees
 	/**
 	 * uri string representations of workspace folders
 	 * @type { Set<string> }
@@ -187,27 +180,25 @@ export class RepoItem extends vscode.TreeItem {
 	 * @param { WorktreeProvider } provider
 	 * @param { string } repoId
 	 * @param { string } commonDir
-	 * @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees 
+	 * @param { AbortController } controller 
 	 */
-	constructor(provider, repoId, commonDir, worktrees) {
-		const [mainWorktree] = worktrees
-		const mainBasename = basename(mainWorktree.path)
-		const label = mainBasename.toLowerCase() === mainWorktree.branch?.toLowerCase()
-			? basename(dirname(mainWorktree.path))
-			: mainBasename
-		
-		super(label, vscode.TreeItemCollapsibleState.Expanded)
+	constructor(provider, repoId, commonDir, controller) {
+		super('', vscode.TreeItemCollapsibleState.Expanded)
 
 		/** @readonly */
 		this.contextValue = /** @type { const } */('repository')
 		/** @readonly */
 		this.id = repoId
-		/** @readonly */
-		this.mainPath = mainWorktree.path
+
+		/** @type { [WorktreeItem<true>, ...WorktreeItem<false>[]] } */
+		this.worktrees; // oxlint-disable-line
+		/** @readonly @type { string } */
+		this.mainPath; // oxlint-disable-line
+		/** @readonly @type { Promise<undefined> } */
+		this.initialize; // oxlint-disable-line
 
 		this.iconPath = new vscode.ThemeIcon('repo')
-
-		this.refreshWorktrees(worktrees)
+		this.#controller = controller
 
 		const commonDirUri = vscode.Uri.file(commonDir)
 		const headWatcher = vscode.workspace.createFileSystemWatcher(
@@ -218,16 +209,51 @@ export class RepoItem extends vscode.TreeItem {
 			new vscode.RelativePattern(commonDirUri, 'worktrees/*'),
 			false, true, false // ignoreChangeEvents
 		)
+		
 		const refreshRepoItem = () => provider.refresh(this)
 		headWatcher.onDidChange(refreshRepoItem)
 		worktreeWatcher.onDidCreate(refreshRepoItem)
 		worktreeWatcher.onDidDelete(refreshRepoItem)
 
-		this.#watchers.push(headWatcher, worktreeWatcher)
+		this.#watchers = [headWatcher, worktreeWatcher]
+
+		const init = async () => {
+			try {
+				await this.refreshWorktrees(commonDir, { signal: controller.signal })
+
+				const [{ description: path, branch }] = this.worktrees
+
+				const mainBasename = basename(path)
+				this.label = mainBasename.toLowerCase() === branch?.toLowerCase()
+					? basename(dirname(path))
+					: mainBasename
+
+				Object.defineProperty(this, 'mainPath', { value: path })
+			} catch(error) {
+				if (!(error instanceof DOMException) || error.name !== 'AbortError') {
+					throw error
+				}
+			}
+		}
+
+		Object.defineProperty(this, 'initialize', {
+			value: new Promise((resolve, reject) => {
+				try {
+					resolve(init())
+				} catch(error) {
+					reject(error)
+				}
+			})
+		})
 	}
 
-	/** @param { Awaited<ReturnType<typeof getWorktrees>> } worktrees */
-	refreshWorktrees(worktrees) {
+	/**
+	 * @param { string } worktreePath
+	 * @param { object } [options]
+	 * @param { AbortSignal } [options.signal]
+	 */
+	async refreshWorktrees(worktreePath = this.mainPath, options) {
+		const worktrees = await getWorktrees(worktreePath, options)
 		// @ts-expect-error
 		this.worktrees = worktrees.map(w => new WorktreeItem(this, w))
 		const normalizedFolders = getNormalizedWorkspaceFolders()
@@ -239,6 +265,7 @@ export class RepoItem extends vscode.TreeItem {
 	}
 
 	dispose() {
+		this.#controller.abort()
 		clearDisposables(this.#watchers)
 	}
 }
