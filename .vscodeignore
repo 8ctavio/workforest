@@ -1,0 +1,12 @@
+# Root folders
+.vscode
+node_modules
+
+# Root files
+.gitignore
+.oxlintrc.json
+pnpm-lock.yaml
+tsconfig.json
+
+# TS files
+**/*.ts
