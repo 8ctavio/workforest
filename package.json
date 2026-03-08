@@ -10,9 +10,10 @@
 	"main": "./src/extension.js",
 	"scripts": {
 		"lint": "oxlint",
-		"typecheck": "tsc"
+		"typecheck": "tsc",
+		"vscode:prepublish": "pnpm typecheck",
+		"vscode:publish": "vsce publish"
 	},
-	"activationEvents": [],
 	"contributes": {
 		"configuration": {
 			"title": "Workforest",
@@ -148,14 +149,15 @@
 		}
 	},
 	"extensionDependencies": ["vscode.git"],
-	"packageManager": "pnpm@10.30.0",
+	"packageManager": "pnpm@10.30.3",
 	"engines": {
-		"vscode": "^1.74.0"
+		"vscode": "^1.108.0"
 	},
 	"devDependencies": {
-		"@types/node": "catalog:",
-		"@types/vscode": "catalog:",
-		"oxlint": "catalog:",
-		"typescript": "catalog:"
+		"@types/node": "25.3.0",
+		"@types/vscode": "1.108",
+		"@vscode/vsce": "3.7.1",
+		"oxlint": "1.49.0",
+		"typescript": "5.9.3"
 	}
 }
