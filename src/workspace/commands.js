@@ -33,6 +33,15 @@ export async function selectWorkspaceDirectory() {
 }
 
 /** @param { WorkspaceItem } workspaceItem */
+export function openWorkspaceInNewWindow(workspaceItem) {
+	vscode.commands.executeCommand(
+		"vscode.openFolder",
+		workspaceItem.resourceUri,
+		{ forceNewWindow: true }
+	)
+}
+
+/** @param { WorkspaceItem } workspaceItem */
 export function openWorkspaceFile(workspaceItem) {
 	if (workspaceItem?.resourceUri) {
 		vscode.commands.executeCommand('vscode.open', workspaceItem.resourceUri)

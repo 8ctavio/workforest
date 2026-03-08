@@ -55,13 +55,17 @@
 				"title": "Select Workspace Directory",
 				"icon": "$(folder)"
 			},{
-				"command": "workforest.openWorkspaceFile",
-				"title": "Open Workspace File",
-				"icon": "$(go-to-file)"
-			},{
 				"command": "workforest.refreshWorkspaceDirectory",
 				"title": "Refresh Workspace Directory",
 				"icon": "$(refresh)"
+			},{
+				"command": "workforest.openWorkspaceInNewWindow",
+				"title": "Open Workspace in New Window",
+				"icon": "$(empty-window)"
+			},{
+				"command": "workforest.openWorkspaceFile",
+				"title": "Open Workspace File",
+				"icon": "$(go-to-file)"
 			}
 		],
 		"viewsContainers": {
@@ -137,8 +141,12 @@
 					"group": "inline@3"
 				},{
 					"when": "view == workspaces",
+					"command": "workforest.openWorkspaceInNewWindow",
+					"group": "inline@1"
+				},{
+					"when": "view == workspaces",
 					"command": "workforest.openWorkspaceFile",
-					"group": "inline"
+					"group": "inline@2"
 				}
 			]
 		}
