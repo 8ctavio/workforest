@@ -165,15 +165,15 @@
 		}
 	},
 	"extensionDependencies": ["vscode.git"],
-	"packageManager": "pnpm@10.30.3",
+	"packageManager": "pnpm@10.31.0",
 	"engines": {
 		"vscode": "^1.108.0"
 	},
 	"devDependencies": {
-		"@types/node": "25.3.0",
+		"@types/node": "25.4.0",
 		"@types/vscode": "1.108",
 		"@vscode/vsce": "3.7.1",
-		"oxlint": "1.49.0",
+		"oxlint": "1.51.0",
 		"typescript": "5.9.3"
 	}
 }
