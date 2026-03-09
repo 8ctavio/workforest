@@ -206,7 +206,7 @@ export class RepoItem extends vscode.TreeItem {
 			true, false, true // ignoreCreateEvents & ignoreDeleteEvents
 		)
 		const worktreeWatcher = vscode.workspace.createFileSystemWatcher(
-			new vscode.RelativePattern(commonDirUri, 'worktrees/*'),
+			new vscode.RelativePattern(commonDirUri, '{worktrees,worktrees/*}'),
 			false, true, false // ignoreChangeEvents
 		)
 		
