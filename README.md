@@ -2,7 +2,7 @@
 
 Extension to conveniently visualize, open, and switch between git worktrees and vscode workspaces.
 
-![Workforest View](https://raw.githubusercontent.com/8ctavio/workforest/refs/heads/main/resources/WorkforestView.png)
+![Workforest View](resources/WorkforestView.png)
 
 ## Worktrees
 
