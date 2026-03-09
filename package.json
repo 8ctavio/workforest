@@ -3,7 +3,7 @@
 	"displayName": "Workforest",
 	"description": "Conveniently visualize, open, and switch between git worktrees and vscode workspaces",
 	"keywords": ["git", "worktree", "git worktree", "workspace", "multi-root workspace"],
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"license": "MIT",
 	"private": true,
 	"publisher": "8ctavio",
