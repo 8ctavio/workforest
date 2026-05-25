@@ -11,6 +11,7 @@
 		"verbatimModuleSyntax": true,
 		"noImplicitOverride": true,
 		"noUncheckedIndexedAccess": true,
+		"types": ["node", "vscode"]
 	},
 	"include": ["src"]
 }
