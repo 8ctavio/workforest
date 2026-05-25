@@ -1,15 +1,14 @@
 {
 	"compilerOptions": {
+		"noEmit": true,
 		"allowJs": true,
 		"checkJs": true,
 		"module": "nodenext",
 		"moduleResolution": "nodenext",
 		"moduleDetection": "force",
-		"noEmit": true,
 		"skipLibCheck": true,
 		"erasableSyntaxOnly": true,
 		"verbatimModuleSyntax": true,
-		"strict": true,
 		"noImplicitOverride": true,
 		"noUncheckedIndexedAccess": true,
 	},
