@@ -16,7 +16,7 @@ To add a worktree, either a path or a branch name is required. When a path is pr
 
 #### Note on multi-root workspaces
 
-In multi-root workspaces, switching the workspace's first folder triggers a reload which makes the process somewhat slower (see [`updateWorkspaceFolders`](https://code.visualstudio.com/api/references/vscode-api#:~:text=%7C%20undefined%3E-,updateWorkspaceFolders,-\(start%3A)). When possible, it is recommended to keep a folder with no worktrees as the workspace's first folder.
+In multi-root workspaces, switching the workspace's first folder triggers a reload which makes the process somewhat slower (see [`updateWorkspaceFolders`](https://code.visualstudio.com/api/references/vscode-api#:~:text=%7C%20undefined%3E-,updateWorkspaceFolders,-\(start%3A)). The reload also prevents Workforest from auto-restoring the incoming worktree's saved editor tabs. When possible, it is recommended to keep a folder with no worktrees as the workspace's first folder.
 
 ## Workspaces
 

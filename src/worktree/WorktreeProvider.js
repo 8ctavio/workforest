@@ -6,6 +6,7 @@ import { clearDisposables } from '../utils/disposables.js'
 import { normalizeWorktreePath, tryNormalizePath } from '../utils/path.js'
 
 /**
+ * @import { WorktreeTabs } from './WorktreeTabs.js'
  * @import { Worktree } from '../utils/git.js'
  * @import { DisposableLike } from '../utils/disposables.types.js'
  */
@@ -52,7 +53,12 @@ export class WorktreeProvider {
 		{ eager: true }
 	)
 
-	constructor() {
+	/** @param { WorktreeTabs } tabs */
+	constructor(tabs) {
+		/** @readonly @type { WorktreeTabs } */
+		this.tabs; // oxlint-disable-line
+		Object.defineProperty(this, 'tabs', { value: tabs })
+		
 		this.#restart()
 
 		let pendingPromises = 0
@@ -73,13 +79,24 @@ export class WorktreeProvider {
 			}
 			this.notify()
 		}, 200)
-		
+
 		this.#disposables.push(
 			this.#repos,
 			this.#changeTreeDataEmitter,
 			syncWorktreesState,
 			vscode.workspace.onDidChangeWorkspaceFolders(async ({ added, removed }) => {
 				syncWorktreesState.dispose()
+
+				const swap = await this.#detectSwap(added, removed)
+				if (swap) {
+					await this.tabs.snapshotAndFlush(swap.outgoing.uri)
+					await this.tabs.closeTabsIn(swap.outgoing.uri)
+				} else {
+					for (const folder of removed) {
+						await this.tabs.deleteSnapshot(folder.uri)
+					}
+				}
+
 				for (const folder of removed) {
 					const folderId = folder.uri.toString()
 					const value = this.#rootFolders.get(folderId)
@@ -93,6 +110,10 @@ export class WorktreeProvider {
 					}
 				}
 				this.#handleAddedFolders(added).finally((pendingPromises++, onSettled))
+
+				if (swap) {
+					await this.tabs.restore(swap.incoming.uri)
+				}
 			})
 		)
 	}
@@ -131,6 +152,36 @@ export class WorktreeProvider {
 		clearDisposables(this.#repos)
 		await this.#handleAddedFolders()
 		this.notify()
+	}
+
+	/**
+	 * Detect a worktree-for-worktree swap from a workspace folder change event:
+	 * exactly one folder removed, one added, at the same index, both worktrees of
+	 * the same repository. Captures both the command path and equivalent manual
+	 * edits / drag-and-drop with the same semantics.
+	 *
+	 * @param { readonly vscode.WorkspaceFolder[] } added
+	 * @param { readonly vscode.WorkspaceFolder[] } removed
+	 * @returns { Promise<{ outgoing: vscode.WorkspaceFolder, incoming: vscode.WorkspaceFolder } | null> }
+	 */
+	async #detectSwap(added, removed) {
+		if (added.length !== 1 || removed.length !== 1) return null
+		const outgoing = removed[0]
+		const incoming = added[0]
+		if (!outgoing || !incoming || outgoing.index !== incoming.index) return null
+
+		const outgoingRepo = this.#rootFolders.get(outgoing.uri.toString())
+		if (!(outgoingRepo instanceof RepoItem)) return null
+
+		try {
+			const incomingCommonDir = await getWorktreeCommonDir(incoming.uri.fsPath)
+			if (!incomingCommonDir) return null
+			if (normalizeWorktreePath(incomingCommonDir) !== outgoingRepo.id) return null
+		} catch {
+			return null
+		}
+
+		return { outgoing, incoming }
 	}
 
 	/** @param { readonly vscode.WorkspaceFolder[] | undefined } workspaceFolders */

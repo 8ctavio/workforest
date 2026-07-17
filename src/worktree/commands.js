@@ -32,7 +32,10 @@ export function revealWorktreeInFileExplorer(worktreeItem) {
 	)
 }
 
-/** @param { WorktreeItem } worktreeItem */
+/**
+ * @this { WorktreeProvider }
+ * @param { WorktreeItem } worktreeItem
+ */
 export async function openWorktree(worktreeItem) {
 	const worktreeUri = vscode.Uri.file(worktreeItem.description)
 	
@@ -108,6 +111,43 @@ export async function openWorktree(worktreeItem) {
 
 	if (target) {
 		const { workspaceFile } = vscode.workspace
+		
+		// If target has no uri (index only), no folder is replaced/closed.
+		if (workspaceFile && target.uri) {
+			const dirtyFiles = this.tabs.getWorktreeDirtyFiles(target.uri)
+			if (dirtyFiles.length) {
+				let fileList = ''
+				for (const file of dirtyFiles) {
+					fileList += file.input instanceof vscode.TabInputText
+						? `\n${clipPath(file.input.uri.fsPath, 60)}`
+						: `\n${file.label}`
+				}
+				const selection = await vscode.window.showWarningMessage(
+					`The following file${dirtyFiles.length > 1 ? 's have' : ' has'} unsaved changes in the "${target.name}" workspace folder:\n${fileList}\n\n`,
+					'Save All',
+					'Discard Changes'
+				)
+				if (selection === 'Save All') {
+					for (const file of dirtyFiles) {
+						const { input } = file
+						if (input instanceof vscode.TabInputText) {
+							try {
+								// @TODO Does it help to use Promise.allSettled instead?
+								const doc = await vscode.workspace.openTextDocument(input.uri)
+								await doc.save()
+							} catch {
+								// @TODO show message that some files could not be saved. Do not open worktree.
+							}
+						}
+					}
+				} else if (selection === 'Discard Changes') {
+					await this.tabs.revertDirtyIn(target.uri)
+				} else {
+					return
+				}
+			}
+		}
+
 		if (pushWorkspaceFolder || workspaceFile) {
 			vscode.workspace.updateWorkspaceFolders(target.index, pushWorkspaceFolder ? 0 : 1, {
 				uri: worktreeUri,
